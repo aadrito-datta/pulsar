@@ -85,7 +85,7 @@ public class KinesisRecordTest {
                 KinesisRecord.SEQUENCE_NUMBER
         ));
 
-        KinesisRecord kinesisRecord = new KinesisRecord(mockRecord, shardId, millisBehindLatest, propertiesToInclude);
+        KinesisRecord kinesisRecord = new KinesisRecord(mockRecord, shardId, millisBehindLatest, propertiesToInclude, null);
         Map<String, String> properties = kinesisRecord.getProperties();
 
         assertEquals(properties.size(), 2);
@@ -102,9 +102,54 @@ public class KinesisRecordTest {
     public void testNoPropertiesIncluded() {
         Set<String> propertiesToInclude = Collections.emptySet();
 
-        KinesisRecord kinesisRecord = new KinesisRecord(mockRecord, shardId, millisBehindLatest, propertiesToInclude);
+        KinesisRecord kinesisRecord = new KinesisRecord(mockRecord, shardId, millisBehindLatest, propertiesToInclude, null);
         Map<String, String> properties = kinesisRecord.getProperties();
 
         assertTrue(properties.isEmpty());
+    }
+
+    
+    /**
+     * Verify that when a partition key field name is provided, the KinesisRecord extracts the key from the JSON
+     * payload instead of using the raw Kinesis partition key. In addition, assert that if the field is not present
+     * in the JSON, the key is empty.
+     */
+    @Test
+    public void testParitionKeyFieldName() {
+        // ----------------------
+        // Case 1: field present
+        // ----------------------
+        String jsonWithKey = "{\"customKey\":\"json-key\",\"foo\":\"bar\"}";
+        when(mockRecord.data()).thenReturn(ByteBuffer.wrap(jsonWithKey.getBytes(StandardCharsets.UTF_8)));
+
+        KinesisRecord kinesisRecordWithKey = new KinesisRecord(
+                mockRecord,
+                shardId,
+                millisBehindLatest,
+                Collections.emptySet(),
+                "customKey");
+
+        assertTrue(kinesisRecordWithKey.getKey().isPresent(), "Expected key to be present when the JSON field exists");
+        assertEquals(kinesisRecordWithKey.getKey().get(), "json-key");
+
+        // ---------------------------------
+        // Case 2: field NOT present in JSON
+        // ---------------------------------
+        KinesisClientRecord mockRecordNoKey = Mockito.mock(KinesisClientRecord.class);
+        when(mockRecordNoKey.partitionKey()).thenReturn(partitionKey);
+        when(mockRecordNoKey.sequenceNumber()).thenReturn(sequenceNumber);
+        when(mockRecordNoKey.approximateArrivalTimestamp()).thenReturn(arrivalTimestamp);
+        when(mockRecordNoKey.encryptionType()).thenReturn(EncryptionType.NONE);
+        String jsonWithoutKey = "{\"foo\":\"bar\"}";
+        when(mockRecordNoKey.data()).thenReturn(ByteBuffer.wrap(jsonWithoutKey.getBytes(StandardCharsets.UTF_8)));
+
+        KinesisRecord kinesisRecordWithoutKey = new KinesisRecord(
+                mockRecordNoKey,
+                shardId,
+                millisBehindLatest,
+                Collections.emptySet(),
+                "customKey");
+
+        assertFalse(kinesisRecordWithoutKey.getKey().isPresent(), "Expected key to be empty when the JSON field is missing");
     }
 }

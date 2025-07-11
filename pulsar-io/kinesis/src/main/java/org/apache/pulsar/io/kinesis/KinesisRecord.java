@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.kinesis;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.StandardCharsets;
@@ -28,6 +29,9 @@ import java.util.Set;
 import org.apache.pulsar.functions.api.Record;
 import software.amazon.awssdk.services.kinesis.model.EncryptionType;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
+
+import java.io.IOException;
+import com.fasterxml.jackson.databind.JsonNode;
 
 public class KinesisRecord implements Record<byte[]> {
     public static final String ARRIVAL_TIMESTAMP = "kinesis.arrival.timestamp";
@@ -41,9 +45,18 @@ public class KinesisRecord implements Record<byte[]> {
     private final Optional<String> key;
     private final byte[] value;
     private final HashMap<String, String> userProperties = new HashMap<>();
+    private final String partitionKeyFieldName;
+    
+
     public KinesisRecord(KinesisClientRecord record, String shardId, long millisBehindLatest,
-                         Set<String> propertiesToInclude) {
-        this.key = Optional.of(record.partitionKey());
+                         Set<String> propertiesToInclude, String partitionKeyFieldName) {
+
+        this.partitionKeyFieldName = partitionKeyFieldName;
+        if (isNotBlank(this.partitionKeyFieldName)) {
+            this.key = extractKey(record.data().array(), new SerDe());
+        } else {
+            this.key = Optional.of(record.partitionKey());
+        }
         // encryption type can (annoyingly) be null, so we default to NONE
         EncryptionType encType = EncryptionType.NONE;
         if (record.encryptionType() != null) {
@@ -84,6 +97,19 @@ public class KinesisRecord implements Record<byte[]> {
             this.value = null;
         }
     }
+
+    private Optional<String> extractKey(byte[] value, SerDe serde) {
+        try {
+            JsonNode node = serde.deserialize(value);
+            if (node.has(partitionKeyFieldName)) {
+                return Optional.of(node.get(partitionKeyFieldName).asText());
+            }
+        } catch (IOException e) {
+            return Optional.empty();
+        }
+        return Optional.empty();
+    }
+
     @Override
     public Optional<String> getKey() {
         return key;

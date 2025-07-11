@@ -21,6 +21,7 @@ package org.apache.pulsar.io.kinesis;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertFalse;
 
 import java.io.IOException;
 import java.time.ZoneOffset;
@@ -39,6 +40,8 @@ import software.amazon.kinesis.common.InitialPositionInStream;
 public class KinesisSourceConfigTests {
 
     private static final Date DAY;
+    private static final String STREAM_NAME = "my-stream";
+    private static final String STREAM_ARN =  "arn:aws:kinesis:us-east-1:123456789012:stream/my-stream";
 
     static {
         Calendar then = Calendar.getInstance();
@@ -211,5 +214,37 @@ public class KinesisSourceConfigTests {
 
         Set<String> properties = config.getPropertiesToInclude();
         assertTrue(properties.isEmpty());
+    }
+
+    @Test
+    public void loadWithStreamArnSetsOptional() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("awsRegion", "us-east-1");
+        map.put("awsKinesisStreamName", STREAM_NAME);
+        map.put("awsCredentialPluginParam",
+                "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+        map.put("streamArnName", STREAM_ARN);
+
+        SourceContext ctx = Mockito.mock(SourceContext.class);
+        KinesisSourceConfig conf = KinesisSourceConfig.load(map, ctx);
+
+        assertTrue(conf.getStreamArn().isPresent(),
+                "Stream ARN should be present when streamArnName is configured");
+        assertEquals(conf.getStreamArn().get().toString(), STREAM_ARN);
+    }
+
+    @Test
+    public void loadWithoutStreamArnLeavesOptionalEmpty() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("awsRegion", "us-east-1");
+        map.put("awsKinesisStreamName", STREAM_NAME);
+        map.put("awsCredentialPluginParam",
+                "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
+
+        SourceContext ctx = Mockito.mock(SourceContext.class);
+        KinesisSourceConfig conf = KinesisSourceConfig.load(map, ctx);
+
+        assertFalse(conf.getStreamArn().isPresent(),
+                "Stream ARN should be empty when streamArnName is not configured");
     }
 }
