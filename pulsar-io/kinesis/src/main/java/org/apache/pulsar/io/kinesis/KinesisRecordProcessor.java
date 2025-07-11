@@ -45,7 +45,7 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
     private long nextCheckpointTimeInNanos;
     private String kinesisShardId;
     private final Set<String> propertiesToInclude;
-    private final String partitionKeyFieldName = "";
+    private final String partitionKeyFieldName;
 
     public KinesisRecordProcessor(LinkedBlockingQueue<KinesisRecord> queue, KinesisSourceConfig config) {
         this.queue = queue;
@@ -101,7 +101,7 @@ public class KinesisRecordProcessor implements ShardRecordProcessor {
 
         for (KinesisClientRecord record : processRecordsInput.records()) {
             try {
-                queue.put(new KinesisRecord(record, this.kinesisShardId, millisBehindLatest, propertiesToInclude));
+                queue.put(new KinesisRecord(record, this.kinesisShardId, millisBehindLatest, propertiesToInclude, partitionKeyFieldName));
             } catch (InterruptedException e) {
                 log.warn("unable to create KinesisRecord ", e);
             }

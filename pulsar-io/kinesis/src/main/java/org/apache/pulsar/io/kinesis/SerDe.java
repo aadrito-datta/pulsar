@@ -1,4 +1,4 @@
-package org.apache.pulsar.io.kinesis;
+package com.example.pulsar.customkinesis;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;

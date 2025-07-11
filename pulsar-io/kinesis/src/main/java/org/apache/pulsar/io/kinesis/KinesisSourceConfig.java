@@ -35,6 +35,7 @@ import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
 import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
+import org.apache.pulsar.io.kinesis.BaseKinesisConfig;
 import software.amazon.awssdk.arns.Arn;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClientBuilder;
